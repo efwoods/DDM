@@ -1,0 +1,202 @@
+---
+title: "Predictions of Missing Values in Given Digital Ad Spend By Course Implementing Collaborative Filtering & Cosine Similarity"
+author: "Evan Woods"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.width = 6)
+knitr::opts_chunk$set(fig.asp = 0.618)
+knitr::opts_chunk$set(out.width = "70%")
+knitr::opts_chunk$set(fig.align = "center")
+knitr::opts_chunk$set(
+  comment = ""
+)
+```
+
+<!-- ## Import Libraries -->
+```{r}
+if(!require("readxl")) install.packages("readxl")
+if(!require("tidyverse")) install.packages("tidyverse")
+
+library(readxl)
+library(tidyverse)
+```
+
+<!-- ## Functions -->
+```{r}
+# """
+#   Purpose: This function will create a formatted output string that wraps at 80
+#            characters. It is expected to be used in conjunction with sprintf().
+#            It is intended for formatted printing while knitting.
+#            I.E.: f_print(sprintf())
+#            Note: This function does interpret newline characters. 
+#   Parameters: 
+#            string: sprintf() wrapped string to print. I.E.: sprintf('string')
+#            
+#   Returns: This function prints the input string.
+# """
+f_print <- function(string){
+  cat(str_wrap(string = string, width = 80, indent = 0, exdent = 0, whitespace_only = TRUE))
+}
+```
+
+```{r}
+# """
+# Purpose: This function calculates the cosine similarity between an arbitrary 
+#          row and every other row in the dataframe.
+# Parameters: 
+#             df_column1: This is the first column of the dataframe to inspect. 
+#             df_column2: This is the second column of the dataframe to inspect.
+#             row_n: This is the row of interest with which all other calculations
+#                  are made.
+# Returns: This function returns the calculated cosine similarity between an 
+#          arbitrary row of interest and every remaining row.
+# """
+cosine_similarity <- function(df_column1, df_column2, row_n) {
+  cosine_similarity_c <- c(integer(length(df_column1)))
+  for (i in seq(1, length(df_column1))){
+    numerator <- (df_column1[row_n] * df_column1[i]) + (df_column2[row_n] * df_column2[i])
+    denominator <- sqrt(sum(df_column1[row_n]^2, df_column2[row_n]^2)) * sqrt(sum(df_column1[i]^2, df_column2[i]^2))
+    calculated_cosine_similarity <- numerator/denominator
+    cosine_similarity_c[i] <- calculated_cosine_similarity
+  }
+  return(cosine_similarity_c)
+}
+```
+
+```{r}
+# """
+#   Purpose: Calculate predictions for missing values of courses/campaigns using collaborative filtering and the campaign that has the greatest cosine similarity
+#   Parameters: 
+#         df: This is the original dataframe containing missing values.
+#         course_column_predictor: This is the column with which to base the 
+#                                  predictions.
+#         course_row: This is the row that contains missing values.
+#         maximum_cosine_similarity_df: This is the dataframe that contains the 
+#                                       data of the greatest cosine similarity 
+#                                       with the course_row.
+#   Returns:
+#         predicted_df: This is the original dataframe with predicted columns.
+# """
+predictions_using_collaborative_filtering_and_cosine_similarity <- function(df, course_column, course_row, maximum_cosine_similarity_df){
+  
+  # Allocate Intermediate Variables
+  pred_df <- df
+
+  # Calculate Predictions
+  
+  # Predicted Paid App Submissions
+  predicted_col <- 'Paid App Submissions'
+  pred_df[course_row, predicted_col] <- as.integer((df[course_row, course_column] * (maximum_cosine_similarity_df[predicted_col] / maximum_cosine_similarity_df[course_column]) * maximum_cosine_similarity_df$cosine_similarity)[, course_column])
+  
+  # Predicted Paid Enrollment
+  predicted_col <- 'Paid Enrollment'
+  pred_df[course_row, predicted_col] <- as.integer((df[course_row, course_column] * (maximum_cosine_similarity_df[predicted_col] / maximum_cosine_similarity_df[course_column]) * maximum_cosine_similarity_df$cosine_similarity)[, course_column])
+  
+  # Predicted Paid Revenue
+  predicted_col <- 'Paid Revenue'
+  pred_df[course_row, predicted_col] <- as.integer((df[course_row, course_column] * (maximum_cosine_similarity_df[predicted_col] / maximum_cosine_similarity_df[course_column]) * maximum_cosine_similarity_df$cosine_similarity)[, course_column])
+  
+  # Predicted RAC
+  predicted_col <- 'RAC'
+  pred_df[course_row, predicted_col] <- as.integer((df[course_row, course_column] * (maximum_cosine_similarity_df[predicted_col] / maximum_cosine_similarity_df[course_column]) * maximum_cosine_similarity_df$cosine_similarity)[, course_column])
+  
+  return(pred_df)
+}
+
+```
+
+<!-- ## Import Data -->
+```{r}
+digitalAdSpendByCourseFY20 <- read_excel("/Volumes/T7/Github/DDM/Unit2/Digital_Marketing_At_HBS_Online_Cleaned.xlsx", 6)
+```
+
+```{r include=TRUE}
+# EDA
+digitalAdSpendByCourseFY20
+```
+
+```{r}
+# Transforming Paid Revenue from character to integer
+
+digitalAdSpendByCourseFY20 <- digitalAdSpendByCourseFY20 %>% mutate(`Paid Revenue` = as.integer(`Paid Revenue`)) %>% mutate(`Paid App Submissions` = as.integer(`Paid App Submissions`)) %>% mutate(`Paid Enrollment` = as.integer(`Paid Enrollment`)) %>% mutate(`RAC` = as.integer(`RAC`))
+```
+
+```{r include=FALSE}
+digitalAdSpendByCourseFY20
+```
+
+```{r}
+## Identifying cosine similarities with respect to Branded and General Course/Campaign
+digitalAdSpendByCourseFY20 <- digitalAdSpendByCourseFY20 %>% mutate(Branded_cosine_similarity = cosine_similarity(`Ad Spend`, `Paid Leads`, 1))
+digitalAdSpendByCourseFY20 <- digitalAdSpendByCourseFY20 %>% mutate(General_cosine_similarity = cosine_similarity(`Ad Spend`, `Paid Leads`, 2))
+```
+
+<!-- ## Identifying the Maximum Cosine Similarities -->
+```{r}
+# Greatest Cosine Similarity Between Branded
+branded_max_cosine_sim <- digitalAdSpendByCourseFY20[which.max(digitalAdSpendByCourseFY20[-1,]$Branded_cosine_similarity),]
+branded_max_cosine_sim <- branded_max_cosine_sim %>% select(everything(), -General_cosine_similarity) %>% rename('cosine_similarity' = 'Branded_cosine_similarity')
+
+# Greatest Cosine Similarity Between General
+general_max_cosine_sim <- digitalAdSpendByCourseFY20[which.max(digitalAdSpendByCourseFY20[-2,]$General_cosine_similarity),]
+general_max_cosine_sim <- general_max_cosine_sim %>% select(everything(), -Branded_cosine_similarity) %>% rename('cosine_similarity' = 'General_cosine_similarity')
+```
+
+<!-- ## Collaborative Filtering To Predict Paid Revenue -->
+```{r}
+predicted_digitalAdSpendByCourseFY20 <- predictions_using_collaborative_filtering_and_cosine_similarity(digitalAdSpendByCourseFY20, 'Ad Spend', 1, branded_max_cosine_sim)
+predicted_digitalAdSpendByCourseFY20 <- predictions_using_collaborative_filtering_and_cosine_similarity(predicted_digitalAdSpendByCourseFY20, 'Ad Spend', 2, general_max_cosine_sim)
+```
+
+## Results 
+```{r}
+f_print(sprintf("Predicted Values of the Branded Course/Campaign Using Collaborative Filtering & Cosine Similarity:"))
+cat("\n\n")
+f_print(sprintf("Course with the Largest Cosine Similarity: %s",branded_max_cosine_sim$`Course/Campaign`))
+cat("\n")
+f_print(sprintf("Cosine Similarity: %0.9f",branded_max_cosine_sim$cosine_similarity))
+cat("\n")
+f_print(sprintf("Branded Predicted Paid App Submissions: %0.0f",predicted_digitalAdSpendByCourseFY20[1,'Paid App Submissions']))
+cat("\n")
+f_print(sprintf("Branded Predicted Paid Enrollment: %0.0f",predicted_digitalAdSpendByCourseFY20[1,'Paid Enrollment']))
+cat("\n")
+f_print(sprintf("Branded Predicted Paid Revenue: %0.0f",predicted_digitalAdSpendByCourseFY20[1,'Paid Revenue']))
+cat("\n")
+f_print(sprintf("Branded Predicted RAC: %0.0f",predicted_digitalAdSpendByCourseFY20[1,'RAC']))
+
+cat("\n\n")
+
+f_print(sprintf("Predicted Values of the General Course/Campaign Using Collaborative Filtering & Cosine Similarity:"))
+cat("\n\n")
+f_print(sprintf("Course with the Largest Cosine Similarity: %s",general_max_cosine_sim$`Course/Campaign`))
+cat("\n")
+f_print(sprintf("Cosine Similarity: %0.9f",general_max_cosine_sim$cosine_similarity))
+cat("\n")
+f_print(sprintf("General Predicted Paid App Submissions: %0.0f",predicted_digitalAdSpendByCourseFY20[2,'Paid App Submissions']))
+cat("\n")
+f_print(sprintf("General Predicted Paid Enrollment: %0.0f",predicted_digitalAdSpendByCourseFY20[2, 'Paid Enrollment']))
+cat("\n")
+f_print(sprintf("General Predicted Paid Revenue: %0.0f",predicted_digitalAdSpendByCourseFY20[2,'Paid Revenue']))
+cat("\n")
+f_print(sprintf("General Predicted RAC: %0.0f",predicted_digitalAdSpendByCourseFY20[2,'RAC']))
+```
+
+```{r}
+predicted_digitalAdSpendByCourseFY20 %>% select(`Course/Campaign`, `Ad Spend`, `Paid App Submissions`, `Paid Enrollment`, `Paid Revenue`)
+```
+
+```{r}
+predicted_digitalAdSpendByCourseFY20 %>% select(`Course/Campaign`,`RAC`)
+```
+
+## Discussion
+```{r}
+f_print(sprintf("The predicted values for the Branded and General courses are higher than other courses/campaigns, but the values do not seem to be obvious outliers except for the RAC. The predicted RACs are inordinately high with respect to the other values in the same column."))
+```
+

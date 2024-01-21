@@ -1,0 +1,159 @@
+---
+title: "Deep NN in R"
+author: "Evan Woods"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.width = 6)
+knitr::opts_chunk$set(fig.asp = 0.618)
+knitr::opts_chunk$set(out.width = "70%")
+knitr::opts_chunk$set(fig.align = "center")
+knitr::opts_chunk$set(
+  comment = ""
+)
+```
+
+<!-- ## Import Libraries -->
+```{r}
+if(!require("keras")) install.packages("keras")
+if(!require("mlbench")) install.packages("mlbench")
+if(!require("dplyr")) install.packages("dplyr")
+if(!require("magrittr")) install.packages("magrittr")
+if(!require("neuralnet")) install.packages("neuralnet")
+
+library(keras)
+library(mlbench)
+library(dplyr)
+library(magrittr)
+library(neuralnet)
+```
+
+```{r}
+data("BostonHousing")
+data <- BostonHousing
+str(data)
+```
+
+```{r}
+# Transform factors to numeric
+data %<>% mutate_if(is.factor, as.numeric)
+```
+
+```{r}
+# Create a neural network with 12 units in the first hidden layer and 7 units in
+# the second hidden layer.
+
+n <- neuralnet(medv ~ . , 
+               data = data, 
+               hidden = c(12, 7), 
+               linear.output = F, 
+               lifesign = 'full',
+               rep=1)
+
+plot(n, col.hidden = 'darkgreen',
+     col.hidden.synapse = 'darkgreen',
+     show.weights = F,
+     information = F,
+     fill = 'lightblue')
+```
+
+```{r}
+# Convert the data to a matrix
+data <-  as.matrix(data)
+dimnames(data) <- NULL
+# data
+```
+
+```{r}
+# Splitting the data into training and test
+set.seed(123)
+ind <- sample(2, nrow(data), replace = T, prob = c(.7, .3))
+training <- data[ind==1, 1:13]
+test <- data[ind==2, 1:13]
+trainingtarget <- data[ind==1, 14]
+testtarget <- data[ind==2, 14]
+str(trainingtarget)
+str(testtarget)
+```
+
+```{r}
+# Scaling
+m <- colMeans(training)
+s <- apply(training, 2, sd)
+training <- scale(training, center = m, scale = s)
+test <- scale(test, center = m, scale = s)
+```
+
+```{r}
+# Model Creation
+model <- keras_model_sequential()
+model %>% layer_dense(units = 5, activation = 'relu', input_shape = c(13)) %>% layer_dense(units = 1)
+```
+
+```{r}
+# Model Compilation
+model %>% compile(loss = 'mse', 
+                  optimizer = 'rmsprop', 
+                  metrics = 'mae')
+```
+
+```{r}
+# Model Fitting
+mymodel <- model %>%
+  fit(training, trainingtarget, 
+      epochs = 100, 
+      batch_size = 32, 
+      validation_split = 0.2)
+```
+
+```{r}
+# Prediction
+model %>% evaluate(test, testtarget)
+pred <- model %>% predict(test)
+mean((testtarget - pred) ^2)
+```
+
+```{r}
+# Scatter Plot Original vs Predicted
+plot(testtarget, pred, main = 'Predicted Values Vs Target Test Values')
+```
+
+```{r}
+# Improving Model Performance
+model %>%
+  layer_dense(units = 100, activation = 'relu', input_shape = c(13)) %>% 
+  layer_dropout(rate = 0.4) %>%
+  layer_dense(units = 50, activation = 'relu') %>%
+  layer_dropout(rate = 0.2) %>%
+  layer_dense(units = 1)
+```
+
+```{r}
+model %>% compile(loss = 'mse', 
+                  optimizer = 'rmsprop', 
+                  metrics = 'mae')
+
+mymodel <- model %>%
+  fit(training, trainingtarget, 
+      epochs = 100, 
+      batch_size = 32, 
+      validation_split = 0.2)
+```
+```{r}
+# Prediction
+model %>% evaluate(test, testtarget)
+pred <- model %>% predict(test)
+mean((testtarget - pred) ^2)
+```
+
+
+```{r}
+# Scatter Plot Original vs Predicted
+plot(testtarget, pred, main = 'Predicted Values Vs Target Test Values')
+```
+
