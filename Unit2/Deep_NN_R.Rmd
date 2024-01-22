@@ -5,6 +5,11 @@ date: "`r Sys.Date()`"
 output: github_document
 ---
 
+```{r}
+# This tutorial is from:
+# https://www.r-bloggers.com/2021/04/deep-neural-network-in-r/#google_vignette
+```
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
@@ -144,6 +149,7 @@ mymodel <- model %>%
       batch_size = 32, 
       validation_split = 0.2)
 ```
+
 ```{r}
 # Prediction
 model %>% evaluate(test, testtarget)
@@ -151,9 +157,7 @@ pred <- model %>% predict(test)
 mean((testtarget - pred) ^2)
 ```
 
-
 ```{r}
 # Scatter Plot Original vs Predicted
 plot(testtarget, pred, main = 'Predicted Values Vs Target Test Values')
 ```
-

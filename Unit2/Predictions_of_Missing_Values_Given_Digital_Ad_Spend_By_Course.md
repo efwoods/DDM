@@ -7,6 +7,29 @@ Evan Woods
 <!-- ## Import Libraries -->
 <!-- ## Functions -->
 <!-- ## Import Data -->
+
+    # A tibble: 17 × 7
+       `Course/Campaign`       `Ad Spend` `Paid Leads` `Paid App Submissions`
+       <chr>                        <dbl>        <dbl> <chr>                 
+     1 Branded                    1491524        50652 NA                    
+     2 General                     974148        21842 NA                    
+     3 CORe                        521368         8695 4720                  
+     4 Finance                     376960         7957 1833                  
+     5 Entrepreneurship            294894         3706 2909                  
+     6 Business Analytics          276115         5232 2712                  
+     7 Management Essentials       273244         4321 1596                  
+     8 Negotiation                 252245         6967 2118                  
+     9 Disruptive Strategy         169516         1433 2004                  
+    10 Financial Accounting        172689         2005 1408                  
+    11 Sustainable Business        160090         2210 1549                  
+    12 Leadership Principles       174408         1503 1914                  
+    13 Economics                   112047         1328 454                   
+    14 Alternative Investments     110574         1539 541                   
+    15 Global Business              61802          378 1017                  
+    16 Live Courses*               143452          845 364                   
+    17 TOTAL                      5565076       120613 25139                 
+    # ℹ 3 more variables: `Paid Enrollment` <chr>, `Paid Revenue` <chr>, RAC <chr>
+
 <!-- ## Identifying the Maximum Cosine Similarities -->
 <!-- ## Collaborative Filtering To Predict Paid Revenue -->
 
