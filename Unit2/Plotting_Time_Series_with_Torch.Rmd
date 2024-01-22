@@ -1,0 +1,97 @@
+---
+title: "Plotting Time Series with Torch"
+author: "Evan Woods"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.width = 6)
+knitr::opts_chunk$set(fig.asp = 0.618)
+knitr::opts_chunk$set(out.width = "70%")
+knitr::opts_chunk$set(fig.align = "center")
+knitr::opts_chunk$set(
+  comment = ""
+)
+```
+
+```{r}
+# Source:
+# https://blogs.rstudio.com/ai/posts/2021-03-10-forecasting-time-series-with-torch_1/
+```
+
+```{r}
+f_print <- function(string){
+  cat(str_wrap(string = string, width = 80, indent = 0, exdent = 0, whitespace_only = TRUE))
+}
+```
+
+
+## Plotting Electricity Demand
+<!-- ## Import Libraries -->
+```{r}
+if(!require("dataset")) install.packages("dataset")
+ 
+library(tidyverse)
+library(lubridate)
+library(tsibble)
+library(feasts)
+library(tsibbledata)
+library(ggplot2)
+library(dataset)
+```
+
+```{r include=FALSE}
+# EDA
+# vic_elec %>% glimpse()
+```
+
+```{r}
+# July Electricity Demand
+vic_elec_2014 <- vic_elec %>%
+  filter(year(Date) == 2014) %>%
+  select(-c(Date, Holiday)) %>%
+  mutate(Demand = scale(Demand), Temperature, Temperature = scale(Temperature)) %>%
+  pivot_longer(-Time, names_to = "variable") %>%
+  update_tsibble(key = variable)
+```
+
+```{r}
+f_print(sprintf("Electricity Demand in Australia During July (Winter)"))
+```
+
+
+```{r}
+# Electricity Demand in Australia During July (Winter)
+
+vic_elec_2014 %>% filter(month(Time) == 7) %>%
+  autoplot() +
+  scale_colour_manual(values = c("#08c5d1", "#00353f")) + 
+  theme_minimal()
+```
+
+```{r include=FALSE}
+# Electricity Demand During Janurary in Australia (Summer)
+vic_elec_2014 %>% filter(month(Time) == 1) %>%
+  autoplot() + 
+  scale_colour_manual(values = c("#08c5d1", "#00353f"))
+  theme_minimal()
+```
+
+```{r}
+vic_elec_2014 <- vic_elec %>%
+  filter(year(Date) == 2014) %>%
+  select(-c(Date, Holiday))
+
+cmp <- vic_elec_2014 %>% filter(month(Time) == 7) %>%
+  model(STL(Demand)) %>%
+  components()
+
+cmp %>% autoplot()
+```
+
+
+
