@@ -1,8 +1,7 @@
 Predictions of Missing Values in Given Digital Ad Spend By Course
-Implementing Collaborative Filtering & Cosine Similarity
 ================
 Evan Woods
-2024-01-23
+2024-01-24
 
 <!-- ## Import Libraries -->
 <!-- ## Functions -->
@@ -117,65 +116,63 @@ Evan Woods
 
 ## Predicting ROI
 
-    [1] 17 25
+    1/1 - 0s - loss: 31.7984 - accuracy: 0.2222 - 190ms/epoch - 190ms/step
 
-         [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13] [,14]
-    [1,]  774  173  360  337  268  410  473  204  267   325    36   104   163    19
-    [2,]  614  111  203  205  148  180  198   95  103   160    26    54    96    34
-         [,15]   [,16] [,17]   [,18]   [,19]   [,20] [,21] [,22] [,23]
-    [1,]  3913 1491524  3139 1741500 5022400 6763900     3     0     0
-    [2,]  2227  974148  1613 1381500 2580800 3962300     3     0     0
+          loss   accuracy 
+    31.7983875  0.2222222 
 
-          [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13]
-     [1,]  714   38   64   75   53   59   65   34   53    50     8    12    40
-     [2,]  101  297   23   32   12   21   20   77   11     8     4    24    14
-     [3,]   16    9   16   11   10  271   18    6    9    12     2     4     7
-     [4,]   22    7    9   11    7   15  193    3    8    10     1     4     6
-     [5,]   54   14    8    6    2    4    7   90    4     2     3     4     2
-     [6,]   14    4    5    8    9    7    8    2  173     3     0     2     2
-     [7,]  116   10   11   16   18   20   25    2   12    90     3     4     5
-     [8,]   42    4   10   11    4    8    4    6    5     3     9     3     5
-     [9,]   10    2    5    0    3    5    3    1    1     3     1    60     0
-    [10,]    9    0    4    2    1    2    7    0    5     1     0     0    10
-    [11,]   12    6   12    7    4    8   14    2    6    12     0     1     4
-    [12,] 2657  697  944  942  695 1057 1094  545  689   753    98   289   374
-          [,14] [,15]   [,16] [,17]   [,18]    [,19]    [,20] [,21] [,22] [,23]
-     [1,]     3  1268  521368   554 1606500   886400  2492900     3     0     0
-     [2,]     1   645  376960   544  227250   870400  1097650     1     0     0
-     [3,]     1   392  252245   376   36000   601600   637600     1     0     0
-     [4,]     4   300  169516   278   49500   444800   494300     1     0     0
-     [5,]     0   200  172689   146  121500   233600   355100     1     0     0
-     [6,]     1   238  160090   224   31500   358400   389900     1     0     0
-     [7,]     0   332  174408   216  261000   345600   606600     2     0     0
-     [8,]     0   114  112047    72   94500   115200   209700     0     0     0
-     [9,]     0    94  110574    84   22500   134400   156900     0     0     0
-    [10,]     1    42   61802    33   20250    52800    73050     0     0     0
-    [11,]    17   105  143452    93   27000   148800   175800     0     0     0
-    [12,]    85 10919 5565076  8262 5978250 13219200 19197450     2     1     1
+    1/1 - 0s - 47ms/epoch - 47ms/step
 
-     [1] 9 1 5 8 3 3 6 0 2 8 0 2
+    Accuracy of the Neural Network Model: 0%.
 
-         [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13] [,14]
-    [1,]   39    7  189    6    6   17   14    9   10    13     0     3     6     2
-    [2,]   80    9   11  196   11    9   18    6   10     7     5     7    11     2
-    [3,]   40    6   14   19  139   21   27    8   12    54     0     3     3     0
-         [,15]  [,16] [,17]  [,18]  [,19]  [,20] [,21] [,22] [,23]
-    [1,]   321 294894   282  87750 451200 538950     0     0     0
-    [2,]   382 276115   302 180000 483200 663200     1     0     0
-    [3,]   346 273244   306  90000 489600 579600     1     0     0
+    1/1 - 0s - 41ms/epoch - 41ms/step
 
-    [1] 2 4 2
+    The resulting test predictions are:
 
-         [,1] [,2] [,3] [,4] [,5]
-    [1,]    0    0    1    0    0
-    [2,]    0    0    0    0    1
-    [3,]    0    0    1    0    0
+    10
+    1
 
-    1/1 - 0s - loss: 23.9816 - accuracy: 0.0833 - 186ms/epoch - 186ms/step
+## Linear Model Prediction of ROI:
 
-           loss    accuracy 
-    23.98163795  0.08333334 
+    # A tibble: 17 × 25
+       `Paid Click Source`      CORe Finance Entrepren `Business Analytics`
+       <chr>                   <dbl>   <dbl>     <dbl>                <dbl>
+     1 Branded                   774     173       360                  337
+     2 General                   614     111       203                  205
+     3 CORe                      714      38        64                   75
+     4 Finance                   101     297        23                   32
+     5 Entrepreneurship           39       7       189                    6
+     6 Business Analytics         80       9        11                  196
+     7 Management Essentials      40       6        14                   19
+     8 Negotiation                16       9        16                   11
+     9 Disruptive Strategy        22       7         9                   11
+    10 Financial Accounting       54      14         8                    6
+    11 Sustainable Business       14       4         5                    8
+    12 Leadership Principles     116      10        11                   16
+    13 Economics                  42       4        10                   11
+    14 Alternative Investments    10       2         5                    0
+    15 Global Business             9       0         4                    2
+    16 LIVE Courses               12       6        12                    7
+    17 TOTAL                    2657     697       944                  942
+    # ℹ 20 more variables: `Manegement Essentials` <dbl>, Negotiation <dbl>,
+    #   `Disruptive Strategy` <dbl>, `Financial Accounting` <dbl>,
+    #   `Sustainable Business` <dbl>, `Leadership Principles` <dbl>,
+    #   Economics <dbl>, `Alternative Investments` <dbl>, `Global Business` <dbl>,
+    #   `LIVE Courses` <dbl>, ...16 <dbl>, `Total Ad spend (Ex10)` <dbl>,
+    #   `non core enrolled` <dbl>, `core rev` <dbl>, `non-core rev` <dbl>,
+    #   `total rev` <dbl>, `ROI = (Rev-Ad)/Ad` <dbl>, `%Revenue` <dbl>, …
 
-    1/1 - 0s - 44ms/epoch - 44ms/step
+    The validation set predictions of ROI (no cross-over) are:
 
-    [1] 0 0 0
+    The predicted ROI (no cross-over) of Branded & General respectively from the
+    linear model trained on the full dataset:
+
+    Branded: 20.712
+
+    General: 1.184
+
+## Discussion of Results
+
+    The predictions on the linear model are underperformant. I am hoping to improve
+    model performance through the application of material learned in the coming
+    weeks of this course.

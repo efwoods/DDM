@@ -1,5 +1,5 @@
 ---
-title: "Predictions of Missing Values in Given Digital Ad Spend By Course Implementing Collaborative Filtering & Cosine Similarity"
+title: "Predictions of Missing Values in Given Digital Ad Spend By Course"
 author: "Evan Woods"
 date: "`r Sys.Date()`"
 output: github_document
@@ -207,7 +207,7 @@ f_print(sprintf("The predicted values for the Branded and General courses are hi
 ## Predicting ROI 
 ```{r results='hide'}
 digitalAdSpendByCourseFY20_soln <- read_excel("/Volumes/T7/Github/DDM/Unit2/HBS Online Solution to post 2.xlsx", sheet = 5, col_types = NULL, col_names = TRUE, skip = 3)
-digitalAdSpendByCourseFY20_soln
+# digitalAdSpendByCourseFY20_soln
 ```
 
 ```{r}
@@ -217,7 +217,7 @@ digitalAdSpendByCourseFY20_soln %<>% mutate(`ROI (no cross-over)` = as.integer(`
 ```{r}
 data <- as.matrix(digitalAdSpendByCourseFY20_soln)
 dimnames(data) <- NULL
-dim(data)
+# dim(data)
 ```
 
 ```{r}
@@ -238,7 +238,7 @@ train <- data_matrix[-c(1,2),]
 ```{r}
 # Creating the test sets
 x_test <- test[,1:23]
-x_test
+# x_test
 ```
 
 ```{r}
@@ -252,20 +252,20 @@ y_val <- train[idx==2, 24]
 ```
 
 ```{r}
-x_train
-y_train
+# x_train
+# y_train
 ```
 
 ```{r}
-x_val
-y_val
+# x_val
+# y_val
 ```
 ```{r}
 y_val_cat <- to_categorical(y_val)
 ```
 
 ```{r}
-y_val_cat
+# y_val_cat
 ```
 
 ```{r}
@@ -319,7 +319,7 @@ for (i in seq(1,length(acc))){
   }
 }
 
-acc
+# acc
 ```
 
 ```{r}
@@ -338,7 +338,7 @@ for (i in seq(1, nrow(pred))){
 ```
 
 ```{r}
-  f_print(sprintf("The resulting test predictions are: "))
+f_print(sprintf("The resulting test predictions are: "))
 cat("\n")
 for (i in seq(1, length(test_prediction_c))){
   f_print(sprintf("%0.0f", test_prediction_c[i]))
@@ -346,4 +346,55 @@ for (i in seq(1, length(test_prediction_c))){
 }
 ```
 
+## Linear Model Prediction of ROI: 
+```{r}
+digitalAdSpendByCourseFY20_soln <- read_excel("/Volumes/T7/Github/DDM/Unit2/HBS Online Solution to post 2.xlsx", sheet = 5, col_types = NULL, col_names = TRUE, skip = 3)
+digitalAdSpendByCourseFY20_soln
+digitalAdSpendByCourseFY20_soln <- digitalAdSpendByCourseFY20_soln %>% mutate(`ROI (no cross-over)` = as.integer(`ROI (no cross-over)`))
+```
 
+```{r}
+train <- digitalAdSpendByCourseFY20_soln[-c(1,2),]
+train %<>% select(everything(), -`Paid Click Source`)
+```
+
+```{r}
+idx <- sample(nrow(train), nrow(train)*.8)
+# idx
+```
+
+```{r}
+validation_set <- train[-idx, ]
+```
+
+```{r}
+x_test <- digitalAdSpendByCourseFY20_soln[c(1,2),2:ncol(digitalAdSpendByCourseFY20_soln)-1]
+# x_test
+```
+
+```{r}
+lm.fit <- lm(`ROI (no cross-over)` ~ ., data = train[idx, ])
+pred <- predict(lm.fit, validation_set)
+```
+
+```{r}
+f_print(sprintf("The validation set predictions of ROI (no cross-over) are:"))
+cat("\n")
+```
+
+```{r}
+lm.fit <- lm(`ROI (no cross-over)` ~ ., data = train)
+pred <- predict(lm.fit, x_test)
+```
+
+```{r}
+f_print(sprintf("The predicted ROI (no cross-over) of Branded & General respectively from the linear model trained on the full dataset:"))
+cat("\n")
+f_print(sprintf("Branded:\n %0.3f", pred[1]))
+cat("\n")
+f_print(sprintf("General:\n %0.3f", pred[2]))
+```
+## Discussion of Results
+```{r}
+f_print(sprintf("The predictions on the linear model are underperformant. I am hoping to improve model performance through the application of material learned in the coming weeks of this course."))
+```
