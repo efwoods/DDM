@@ -2,7 +2,7 @@
 title: "Predictions of Missing Values in Given Digital Ad Spend By Course"
 author: "Evan Woods"
 date: "`r Sys.Date()`"
-output: github_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
