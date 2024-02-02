@@ -1,0 +1,559 @@
+---
+title: "Targeted Marketing"
+author: "David C. Parkes and Sophie Hilgard"
+#date: "1/1/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+subtitle: Week 3, Data-driven Marketing, Harvard Business Analytics Program
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Overview
+
+**To run this project in Posit, you can either run each chunk of code by clicking the green "right" arrow on each gray code block in sequence. Also, (helpful hint!!), the project will also always run through, without error, by choosing "Session" -> "Restart R and Run All Chunks" from the menu. (Sometimes jumping back and forth through the code can lead to errors.) If asked, always click "yes" to install any packages. It may take just a little while.**
+
+We will explore different models for predicting redemption rates for targeted marketing offers. Imagine that you are in charge of digital marketing at Uber Local Offers, and need a method to determine which offers to present to customers who visit your site. For example, below we see offers for Whole Foods and local restaurants.
+```{r, out.width = "200px"}
+include_graphics("./uber_local_offers.png")
+```
+
+The data that we make use of is provided by Nift (https://www.gonift.com/), a collaborative marketing network for local businesses, and headquartered in Boston. (Disclosure: David Parkes is acting Chief Scientist at Nift).  Nift works by allowing one merchant, say a hair salon, to give a gift to one of their favorite customers. This gift will be provided by another merchant in the network, say a restaurant, and the particular gift -- corresponding to an offer -- is selected by Nift's algorithms. Each offer is associated with a dollar amount, representing a discount at the destination merchant.
+
+Our goal in this exercise is to understand how to predict, for a given customer, which offers is the customer most likely to redeem. For this, we will build a model of offer redemption.
+
+## The Data
+
+We'll begin by exploring the data. 
+```{r}
+load("./offers_tiny.RData")
+```
+
+In RStudio, we now have three objects in the environment: the train, test, and validation sets. Each row corresponds to an offer that was presented to a customer, and whether the offer was redeemed or not. 
+
+You have access to a subset of the most important features. To protect proprietary information, some of the feature values are synthetic, but with realistic statistics.
+
+**Q1** What is the fraction of data in the training set, validation set, and test set?
+**A1** [Write your answer here, and then enter your answer into Digital Campus]
+
+```{r}
+dim(cleanTrain)
+dim(cleanTest)
+dim(cleanValidation)
+```
+
+```{r}
+class(cleanTest$REDEEMED)
+```
+
+
+```{r}
+redeemed_list <- list(cleanTrain$REDEEMED, cleanTest$REDEEMED, cleanValidation$REDEEMED)
+```
+
+```{r}
+length(redeemed_list)
+for (i in seq(1, length(redeemed_list))){
+  print(redeemed_list[[i]])
+}
+```
+
+
+
+```{r}
+"""
+  Purpose: This function calculates the percent of redeemed offers. 
+  Parameters: 
+              redeemed_l: This is a list containing the cleanTrain, cleanTest, &
+                          cleanValidation data. cleanTrain is expected to be of
+                          class 'factor' with two levels. cleanTest & 
+                          cleanValidation are expected to be of type double
+                          where a '1' indicates a redemption and '0' otherwise. 
+  Returns:
+          percent_redeemed_c: This is a collection of integers which correspond
+                              with each element in the redeemed list: 
+                              cleanTrain, cleanTest, & cleanValidation 
+                              respecitvely. The returned values are 
+                              representative of percentiles from 0 to 100 with
+                              3 significant digits and indicate the proportion 
+                              of redemptions in each dataset. 
+"""
+calculate_percent_redeemed <- function(redeemed_l) {
+  percent_redeemed_c <- c(integer(length(redeemed_l)))
+  for (i in seq(1, length(redeemed_l))){
+    if (i == 1){
+      percent_redeemed_c[i] <- ((sum((as.integer(redeemed_l[[i]])-1)) / length(as.integer(redeemed_l[[i]]) - 1)) * 100)
+    } else {
+      percent_redeemed_c[i] <- ((sum((as.integer(redeemed_l[[i]]))) / length(as.integer(redeemed_l[[i]]))) * 100)
+    }
+  }
+  return(percent_redeemed_c)
+}
+percent_redeemed <- calculate_percent_redeemed(redeemed_list)
+```
+
+```{r}
+sprintf("Percent of redeemed offers in the training set: %0.3f%%.", percent_redeemed[1])
+cat("\n")
+sprintf("Percent of redeemed offers in the test set: %0.3f%%.", percent_redeemed[2])
+cat("\n")
+sprintf("Percent of redeemed offers in the validation set: %0.3f%%.", percent_redeemed[3])
+cat("\n")
+```
+
+We can explore some of the features. 
+```{r}
+str(cleanTrain[,1:10])
+```
+
+The first variable is the target of prediction, i.e., whether or not the offer was redeemed. The next nine features are binary, offer-specific features corresponding to the category of the offer. 
+
+We can look at the names of the first 90 features. (Click the "show in new window" icon at the top right of the results if you can't see them all).
+```{r}
+colnames(cleanTrain[1:90])
+```
+
+Features 2 through 34 are offer-specific (some of these have been anonymized). We can look at the distribution of values corresponding to the REPUTATION feature. 
+```{r}
+table(cleanTrain$REPUTATION)
+mean(cleanTrain$REPUTATION)
+```
+Merchant reputation is a number between 1 and 5, with mean 3.998.  Features 35 through 49 are customer-specific, corresponding to a customer's email provider. We can look at features 50 through 58 in some more detail.
+```{r}
+str(cleanTrain[,50:58])
+```
+
+Features 50 through 53 are offer-customer specific, and group the distance between a customer and the location of the offer, for example the nearest merchant location, into one of four categories (from nearby, to far away). These are the only features in the data that interact the features of an offer with the features of a customer. 
+
+OFFER_VALUE is offer-specific, and represents the monetary value (USD) of the offer (e.g., "50 off a purchase of 100 or more" would correspond to OFFER_VALUE 50). 
+```{r}
+summary(cleanTrain$OFFER_VALUE)
+```
+Features 55 through 90 are customer-specific features, for example demographic information. This kind of information can be purchased from data brokers or derived from data already available. 
+
+Some features in the data set correspond to information about how well the customer matched to third-party data (e.g., SOFTMATCH_DATA1). This kind of information can itself be informative. There are also features that relate to the digital footprint of a customer (SMALL_TRAIL and SMALLEST_DIG_EXHAUST).
+
+Features 91 through 160 are offer-specific features, capturing the location of the offer via one-hot encoding. We see the first five (these are offers in the Boston area). Features 161 through 564 indicate the merchant ID, again via one-hot encoding.  
+```{r}
+str(cleanTrain[,91:95]) 
+str(cleanTrain[,159:162])
+str(cleanTrain[,561:564])
+```
+
+You can continue to explore the other features in the data set if you're interested. 
+
+## Logistic Regression
+
+We will first train a logistic regression model to predict REDEMPTION. This is the kind of model that has been used for internet advertising, for example predicting clicks, and seems natural to consider in this application because it will predict the probability of redemption, and because it is simple--- allowing for fast training, and also low latency when generating an offer. 
+
+We use the glmnet package. This provides a specific kind of regularized logistic regression, namely *elastic net*. Elastic net uses both L1 and L2 regularization, balanced by an $\alpha$ parameter. During training, the [function](https://www.rdocumentation.org/packages/glmnet/versions/2.0-16/topics/glmnet) that is minimized is:
+$$
+\frac{1}{|\mathit{Train}|}\sum_{i\in {\mathit{Train}}} \ell(y_i, w^T x_i) + \lambda \big[\frac{1-\alpha}{2}||w||_2^2 + \alpha||w||_1\big]
+$$
+
+Here, l(.) is the loss function (the negated log likelihood from this week's materials), $x_i$ the feature vector, $y_i$ the target in {0,1}, and w are the model parameters that we want to learn. 
+
+The values of $\lambda\geq 0$ and $\alpha\in [0,1]$ determine the way regularization works. $\alpha$ affects the sparsity of the model: when $\alpha=0$, only L2 (ridge) regularization is used, and when $\alpha=1$ only L1 (LASSO) regularization is used. L2 penalizes large-valued coefficients. L1 encourages zero-valued coefficients, increasing the sparsity of the model. With as many features as we have (and many more in a real setting), this can help with interpretability as well prediction speed. 
+
+We use [cv.glmnet](https://www.rdocumentation.org/packages/glmnet/versions/2.0-16/topics/cv.glmnet). 
+```{r, include=FALSE}
+library("Matrix")
+library("glmnet")
+```
+
+This uses 10-fold cross-validation on the training data to tune the value of $\lambda$, choosing from 100 possible values. A higher value of $\lambda$ increases the regularization penalty. We set $\alpha=.8$, which is a common choice that favors L1 regularization but still penalizes large-valued coefficients to some extent.
+
+We will later use the validation data, cleanValidation, to study the effect of varying the number of trees in a random forest.
+
+Because the data is unbalanced, we also assign a higher weight to errors on the positive examples, according to the fraction by which these examples are underrepresented in the data. This way, cross-validation considers balanced accuracy, weighting the error on negative and positive examples equally.
+```{r, cache=TRUE}
+#convert the data to matrix form for glmnet and remove the target variable
+RNGkind(sample.kind = "Rounding")
+set.seed(1)
+
+fracPos= nrow(subset(cleanTrain, REDEEMED == 1))/nrow(subset(cleanTrain, REDEEMED == 0))
+ws<-mapply(function(y) (ifelse(y==0,1,1/fracPos)), cleanTrain$REDEEMED)
+
+xTrain <- Matrix(as.matrix(subset(cleanTrain,select=-c(REDEEMED))),sparse=TRUE)
+target<-as.factor(cleanTrain$REDEEMED)
+glmnetFit <- cv.glmnet(x=xTrain,y=target,weights=ws,alpha=0.8, family='binomial', 
+                       type.measure = "class",nlambda=100)
+```
+
+
+Choosing family='binomial' specifies logistic regression, and choosing type.measure='class' instructs glmnet to choose a $\lambda$ value to minimize 0-1 misclassification error. You could also try \texttt{auc} to use the area under the ROC curve.
+
+Plotting the fit shows the various values of $\lambda$ tested, and their resulting misclassification errors. 
+```{r, include=FALSE}
+library(ggplot2)
+```
+
+```{r}
+plot(glmnetFit)
+```
+
+Your results may look a little different because of randomization during training. The two vertical, dotted lines represent two common choices for $\lambda$: $\lambda_{\min}$ and $\lambda_{\mbox{1se}}$. $\lambda_{\min}$ is the value that minimizes cross validation misclassification. $\lambda_{\mbox{1se}}$ is a more conservative choice, and the largest value of $\lambda$ with misclassificator error within one standard error of $\lambda_{\min}$. Given that it has comparable performance we choose this, preferring the simpler model. 
+
+### Model Evaluation
+#### Balanced Accuracy
+
+Let's evaluate the performance of the model. First, we'll uses the test set to calculate a *confusion matrix*. To generate predictions, we use the predict function with type \texttt{response}, which provides the predicted probability. We will convert these probabilities to predicted class labels (redeem, or not) by adopting a threshold. Above the threshold, we predict a '1' (REDEEM), otherwise we predict a '0'. 
+```{r,include=FALSE}
+library("caret")
+```
+
+```{r}
+xTest <-Matrix(as.matrix(subset(cleanTest,select=-c(REDEEMED)),sparse=TRUE))
+p_hat = as.data.frame(predict(glmnetFit, newx=xTest, type="response", s = "lambda.1se"))
+colnames(p_hat)[1] <- "score"
+p_hat_class=data.frame(apply(p_hat, 1, function(x) (ifelse(x>=.5,1,0))))
+colnames(p_hat_class)[1] <- "prediction"
+p_hat_class$prediction=as.factor(p_hat_class$prediction)
+true_class=as.factor(cleanTest$REDEEMED)
+all.confusionMatrix = confusionMatrix(data=p_hat_class$prediction,reference=true_class, positive = '1')
+all.confusionMatrix
+```
+
+The balanced accuracy is the average of the accuracy on true-0s and true-1s, and is reasonable at around 0.70. 
+
+#### Feature Examination
+
+It interesting to examine the coefficients, and see which have the greatest predictive power, and whether our intuition as to which features are useful is borne out in the data:
+```{r,include=FALSE} 
+library("plyr")
+library("dplyr")
+```
+
+```{r}
+best_coef <- coef(glmnetFit, s = "lambda.1se")
+featuresGLM<-data.frame(name = best_coef@Dimnames[[1]][best_coef@i + 1], 
+                        coefficient = best_coef@x)
+head(arrange(featuresGLM, desc(coefficient)),10)
+#also look at the ones that are not featured merchants
+tmpFeatures <- featuresGLM[-grep(pattern = "^FEATURED_MERCHANT", featuresGLM$name),]
+head(arrange(tmpFeatures, desc(coefficient)),10)
+head(arrange(tmpFeatures, coefficient),10)
+rm(best_coef,tmpFeatures)
+```
+
+The largest coefficients correspond to indicators for specific merchants. Removing these, we see other factors. 
+
+**Q2:** Do the features that affect the prediction of the model seem sensible? Give a brief explanation.
+**A2:** [Write your answer here, and then enter your answer into Digital Campus]
+It appears that coefficients reflect where the offers are being redeemed. Given this assertion, the offers are being redeemed at merchant pod "Needham", with a distance of 1, using EDU, & town isp. The "multiple categories food" redemption appears to be significant.In contrast, there are negative coefficients with the following pods: hyde space park, Beverly, Canton, Roxbury, Brighton, & Dorchester Codman Square. These are merchants that either a change in promotion tactics or need capital reinvestment to more prosperous merchants. Distance 4 seems to be struggling to redeem offers, and the multiple categories of education offer appears to be an unpopular selection. These results are sensible without domain knowledge of the area. 
+
+The value of the offer is not one of the features used by the linear model. With more training data, this feature is picked up with a small, positive effect. 
+
+
+#### ROC Curves and Reliability Plots
+
+To evaluate the ability of the model to correctly rank offers that are redeemed above those that are not redeemed, we can also use the area under a ROC curve, as discussed in this week's materials.
+```{r,include=FALSE}
+library("pROC")
+```
+
+```{r, message=FALSE}
+xTest <-Matrix(as.matrix(cleanTest[,c(2:564)],sparse=TRUE))
+p_hat = as.data.frame(predict(glmnetFit, newx=xTest, type="response", s = "lambda.1se"))
+colnames(p_hat)[1] <- "score"
+cleanTest$score <- p_hat$score
+par(pty="s")
+g <- roc(REDEEMED ~ score, data=cleanTest)
+auc(g)
+plot(g)
+cleanTest <- subset(cleanTest,select=-c(score))
+rm(g)
+```
+
+The  model does significantly better than making a constant or random prediction, which would lie on the x=y line. The AUC is around 0.76, reflecting the probability that the model can correctly rank a random positive example above a random negative example. 
+
+We can also check to see how calibrated the model is through a *reliability plot* (also called a calibration plot). This plots the average, estimated probability against the actual probability. Don't worry about the specifics as to how the following function is defined.
+```{r}
+reliability.plot <- function(obs, pred, fileName, bins=10, scale=T) {
+  #  Credit: Daniel Nee
+  #  Plots a reliability chart and histogram of a set of predictions from a classifier
+  #
+  # Args:
+  #   obs: Vector of true labels. Should be binary (0 or 1)
+  #   pred: Vector of predictions of each observation from the classifier. Should be real
+  #       number
+  #   bins: The number of bins to use in the reliability plot
+  #   scale: Scale the pred to be between 0 and 1 before creating reliability plot
+  min.pred <- min(pred)
+  max.pred <- max(pred)
+  min.max.diff <- max.pred - min.pred
+  if (scale) {
+    pred <- (pred - min.pred) / min.max.diff
+  }
+  bin.pred <- cut(pred, bins)
+  #idx = "(-0.001,0.1]" == bin.pred
+  k <- ldply(levels(bin.pred), function(x) {
+    idx <- x == bin.pred
+    c(sum(obs[idx]) / length(obs[idx]), mean(pred[idx]))
+  })
+  is.nan.idx <- !is.nan(k$V2)
+  k <- k[is.nan.idx,]
+  #pdf(fileName)
+  plot(k$V2, k$V1, xlim=c(0,1), ylim=c(0,1), xlab="Mean Prediction", 
+       ylab="Observed Fraction", col="red", type="o", main="Reliability Plot")
+  lines(c(0,1),c(0,1), col="grey")
+  subplot(hist(pred, xlab="", ylab="", main="", xlim=c(0,1), col="blue"), 
+          grconvertX(c(.8, 1), "npc"), grconvertY(c(0.08, .25), "npc"))
+  #dev.off()
+}
+```
+
+```{r, include=FALSE}
+library("Hmisc")
+```
+
+```{r}
+reliability.plot(as.numeric(cleanTest$REDEEMED), as.numeric(p_hat$score),scale=T, bins=20)
+```
+
+**Q3:** The model is not calibrated. How might this cause a problem, and why do you think it is not calibrated? 
+**A3:** [Write your answer here, and then enter your answer into Digital Campus] 
+
+
+
+```{r}
+rm(xTest,xTrain)
+```
+
+### Using the Model for Targeting
+
+Let's suppose we use the model for targeting. We simulate this for 30 customers, and with 50 candidate offers, choosing the offer with the best score. We first generate the customer and offer features by sampling from the test data. We fix the distance to be "close" for all customers and offers.
+```{r}
+set.seed(2)
+ncust=30
+noffer=50
+#sample the customer-specific features (35:49 and 55:90) from 30 customers, and store them in cust_vals
+cust_vals = cleanTest[sample(c(1:ncol(cleanTest)), ncust, replace = FALSE),c(35:49,55:90)]  
+#sample the offer-specific features (2:34,54, and 91:564) from 50 offers, and store them in offer_vals
+offer_vals = cleanTest[sample(c(1:ncol(cleanTest)), noffer, replace = FALSE),c(2:34,54,91:564)]  
+#for the distance, we will set all offers to be nearby (suppose this is a criterion when choosing candidate offers)     
+distance_vals = c(1,0,0,0) #"DISTANCE.1" = 1 
+```
+
+Next, we create the examples (30 x 50, representing the customer-offer combinations), and predict the redemption rate for each.
+```{r}
+#create an empty dataframe that will hold our synthetic data with a row for every customer x offer
+candidate_offers <- data.frame(matrix(ncol = 564, nrow = ncust*noffer))  #first block is for customer 1, then customer 2, ..
+colnames(candidate_offers) <- colnames(cleanTrain)
+#for each customer
+for (i in 0:(ncust-1)){
+  for (j in 1:noffer){
+    #i*noffer gets us to the block corresponding to the customer. Then loop through the offers, 
+    #populating the customer-specific fields (35:49 and 55:90) with the values for that customer, 
+    #stored in 1:15 and 16:51 of cust_vals
+    candidate_offers[i*noffer + j, 35:49] <- cust_vals[i+1, 1:15]
+    candidate_offers[i*noffer + j, 55:90] <- cust_vals[i+1, 16:51]
+  }
+}
+#for each offer
+for (j in 1:noffer){
+  for (i in 0:(ncust-1)){
+    #now populate the offer-specific fields (2:34, 54, and 91:564) with the values for each offer,
+    #which have been stored in 1:33, 34, and 35:508 of offer_vals, respectively
+    candidate_offers[i*noffer + j, 2:34] <- offer_vals[j, 1:33]
+    candidate_offers[i*noffer + j, 54] <- offer_vals[j, 34]
+    candidate_offers[i*noffer + j, 91:564] <- offer_vals[j, 35:508]
+  }
+}
+#populate the distance-specific values with the same values for all customer-offer combinations
+for (i in 1:(ncust*noffer)){
+  candidate_offers[i,50:53] <- distance_vals
+}
+
+#generate predictions for the synthetic customer-offer data
+xOffers <-Matrix(as.matrix(subset(candidate_offers,select=-c(REDEEMED)),sparse=TRUE))
+p_offer_vals = predict(glmnetFit, newx=xOffers, type="response", s = "lambda.1se")
+rm(xOffers)
+#calibrate
+#p_offer_vals<-as.data.frame(fit.isoreg(iso.model.train, p_offer_vals))
+colnames(p_offer_vals)[1] <- "pred_redemption_rate"
+```
+
+We can now determine which offer would be selected for each customer:
+```{r}
+#for each customer, index into the block of predicted values corresponding to candidate offers 
+#find the best offer
+for (i in 0:(ncust-1)){
+  best_offer = which.max(p_offer_vals[(i*noffer + 1):((i+1)*noffer),'pred_redemption_rate'])
+  cat("cust", i+1, "best offer", best_offer, "redemption rate", p_offer_vals[(i*noffer + 1):((i+1)*noffer),'pred_redemption_rate'][best_offer],"\n")
+}
+rm(best_offer)
+```
+ 
+**Q4:** What is surprising about the decisions suggested by the linear model? How can you explain this?
+**A4:** [Write your answer here, and then enter your answer into Digital Campus]
+
+The problem with the linear model is that, except for distance, the difference in prediction from offer to offer is the same for every customer. There are no interactions between the features of the offer and the features of the customer. 
+
+```{r}
+rm(offer_vals, glmnetFit, p_offer_vals)
+```
+
+
+
+## Random Forests
+
+A popular model that allows for nonlinear interactions between features is a *random forest*. To look at this, we use the ranger package.
+```{r, cache=FALSE, include=FALSE}
+library("ranger")
+```
+
+```{r,cache=TRUE}
+set.seed(3)
+rfFit <- ranger(REDEEMED ~ ., data = cleanTrain[1:20000,],  probability=TRUE,
+                num.trees = 200, mtry = 24, importance = "impurity")
+```
+
+We have configured ranger to use 200 trees, and to branch on one of 24 variables (this is around the squareroot of the number of features, a typical rule-of-thumb). Setting the importance parameter to "impurity" has the effect of asking ranger to roughly calculate the importance of different features at the same time as training the model.
+
+### Model Evaluation
+
+Let's look at the confusion matrix and balanced acccuracy for the random forest model, using the fraction of positive examples for the decision threshold (we need to adjust the threshold to fracPos because we did not reweight the data when calling ranger).
+```{r}
+classPredRF <- predict(rfFit, data=cleanTest)
+p_hat_rf <- data.frame(classPredRF$prediction[,c(2)])
+colnames(p_hat_rf)[1] <- "score"
+p_hat_rf_class = data.frame(apply(p_hat_rf, 1, function(x) (ifelse(x>=fracPos,1,0))))
+colnames(p_hat_rf_class)[1] <- "prediction"
+p_hat_rf_class$prediction=as.factor(p_hat_rf_class$prediction)
+all.confusionMatrix = confusionMatrix(data=p_hat_rf_class$prediction,reference = as.factor(cleanTest$REDEEMED), positive='1')
+all.confusionMatrix
+rm('p_hat_rf_class','all.confusionMatrix')
+```
+
+**Q5:** How does the predictive performance of the random forest model compare to that of the linear model?
+**A5:** [Write your answer here, and then enter your answer into Digital Campus]
+
+
+The relative performance of RF over the linear model continues to improve as the amount of training data increases.
+
+### Model Validation
+
+We can use the validation data to explore the effect of varying the number trees (you could also experiment with varying mtry). Here, we run on 10,000 examples, to help with memory management. The following may take a minute or two.
+```{r, cache=TRUE, message=FALSE}
+ms<-c(10, 50, 100) #different numbers of trees to try: 10,50,100
+ba<-c(0,0)  #place holder to store balanced accuracy result
+set.seed(4)
+for (i in seq_along(ms)) {
+  cat("training RF model ",i,"\n")
+  rfFitValidation <- ranger(REDEEMED ~ ., data = cleanTrain[1:10000,], probability=TRUE,
+                            num.trees = ms[i], mtry = 24, importance = "impurity")
+  #note: run chunk 3 again if cleanValidation no longer in environment
+  sClassValidation <- predict(rfFitValidation, data= cleanValidation) 
+  p_hat_cv <- data.frame(sClassValidation$prediction[,c(2)])
+  colnames(p_hat_cv)[1] <- "score"
+  p_hat_class_cv=data.frame(apply(p_hat_cv, 1, 
+                        function(x) (ifelse(x>=fracPos,1,0))))
+  rm(p_hat_cv)
+  colnames(p_hat_class_cv)[1] <- "prediction"
+  p_hat_class_cv$prediction=as.factor(p_hat_class_cv$prediction)
+  one.Pred=as.factor(cleanValidation$REDEEMED)
+  ba[i]<-confusionMatrix(data=p_hat_class_cv$prediction,
+                         reference=as.factor(cleanValidation$REDEEMED), positive='1')$byClass[11]
+  rm(p_hat_class_cv,rfFitValidation,sClassValidation)
+}
+cat("Balanced accuracy on validation data for number of trees ", ms, " is ", "\n", ba)
+rm(ba,i,ms)
+```
+
+We see that the balanced accuracy generally increases with the number of trees. Increasing the number of trees can further improive the performance of RF methods when there is more training data.
+
+### Model Interpretation
+
+One issue with a random forest model is that it may not be interpretable as a linear model. There are no coefficients to read off. Still, there are various measures of importance that can be used to find the features with the largest effects. 
+
+The most common approach is impurity, which measures the information gain when a feature is branched at a node in a tree (roughly, how much more sorted is the data into 0s and 1s after the branch than before?). This is weighted by the proportion of samples in a tree that reach the node, and averaged over all trees (including those where a feature is not branched on at all).
+```{r}
+head(arrange(VI <- data.frame(variable=names(rfFit$variable.importance),
+                              importance=rfFit$variable.importance, row.names=NULL),
+             desc(importance)),10)
+```
+
+This suggests that 'OFFER_VALUE' is the most important variable. However, impurity is only an approximate method (and may not consider interaction effects, or handle continuous vs binary features correctly). 
+
+Ranger also provides a more computationally expensive method, which determines variable importance through the *permutation* approach. After a model has been trained, this measures the decrease in accuracy when the values of a feature are randomly permuted. If the feature is important the effect on accuracy will be large. Otherwise, the effect will be small. Let's see what happens when we do this. 
+
+With all the data and 200 trees this takes a few minutes. We simplify, and do this for half the training data and 100 trees. The results are similar with all the data and 200 trees.
+```{r, CACHE=TRUE}
+set.seed(5)
+rfFit2 <- ranger(REDEEMED ~ ., data = cleanTrain[1:10000,], probability=TRUE,
+                 num.trees = 100, mtry = 24, importance = "permutation") 
+head(arrange(VI <- data.frame(variable=names(rfFit2$variable.importance),
+                              importance=rfFit2$variable.importance, row.names=NULL),
+             desc(importance)),10)
+rm(rfFit2)
+```
+
+**Q6:** Does using the permutation method change the conclusions in regard to the informativeness of different features? Do the features look reasonable?
+**A6:** [Write your answer here, and then enter your answer into Digital Campus]
+
+#### Partial Dependency Plots
+
+We can also study the effect of individual features through *partial dependency plots*. These map the value of a feature (on the x-axis) against the predicted redemption rate. This is achieved by replacing the feature with each of a set of possible values on a set of examples, and looking at the way the prediction depends on this. Below we plot the partial dependency for OFFER_VALUE. We use 5,000 examples to avoid to avoid memory problems with Posit. 
+```{r, include=FALSE}
+library("pdp")
+```
+
+```{r,cache=TRUE}
+xgrid <- data.frame(OFFER_VALUE = seq(10,50,5)) 
+pd <- partial(rfFit, pred.var = "OFFER_VALUE", pred.grid=xgrid, prob=TRUE, which.class=2, type="classification", train = cleanTrain[1:5000,])
+sp<-autoplot(pd, contour = TRUE, legend.title = "Partial\ndependence")
+sp
+for (i in seq(10,50,5)){
+  cat("Number of examples with VALUE around ",toString(i)," is ", with(cleanTrain[1:5000,], sum(OFFER_VALUE > (i-2.5) & OFFER_VALUE <= (i+2.5))),"\n")
+}
+rm(sp,xgrid,pd)
+```
+Between 10 and 30, we see an expected trend of higher offer value corresponding to higher redemption rates.  
+
+**Q7:** Why might offers with value 50  have a smaller redemption rate than offers with value 30?
+**A7:** [Write your answer here, and then enter your answer into Digital Campus]
+
+**Q8:** Generate a partial dependency plot for REPUTATION, modifying the code above, and explain any finding. We suggest to use a grid with values 3, 3.5, 4, 4.5, and 5, and 5,000 examples to avoid memory problems.
+**A8:** [Write your answer here, and then enter your answer into Digital Campus]
+
+
+#### ROC Curves and Reliability Plots
+
+We can also plot the ROC curve and reliability plot for the random forest model. The AUC is similar to that of the linear model, and improves when RFs are trained on a larger data set. The slight miscalibration goes away for a larger amount of training data (e.g., 10x the size of the current data set). It can also be addressed through postprocessing as we did with the logistic regression model.
+```{r, message=FALSE}
+cleanTest$score <- p_hat_rf$score
+par(pty="s")
+g <- roc(REDEEMED ~ score, data=cleanTest)
+auc(g)
+plot(g)
+cleanTest <- subset(cleanTest,select=-c(score))
+rm(g)
+reliability.plot(as.numeric(cleanTest$REDEEMED), p_hat_rf$score, scale=T, bins=20)
+```
+
+### Using the Model For Targeting
+
+Let's now look at the effect of the model on the same set of customers as before, using the same set of candidate offers.
+```{r}
+p_offer_vals_rf = predict(rfFit, data=candidate_offers)$prediction
+colnames(p_offer_vals_rf)[2] <- "pred_redemption_rate"
+for (i in 0:(ncust-1)){
+  best_offer = which.max(p_offer_vals_rf[(i*noffer + 1):((i+1)*noffer),'pred_redemption_rate'])
+  cat("cust", i+1, "best offer", best_offer, "redemption rate", p_offer_vals_rf[(i*noffer + 1):((i+1)*noffer),'pred_redemption_rate'][best_offer],"\n")
+}
+```
+
+**Q9:** What do you notice about the offers suggested by the random forest model? Can you explain the difference in the choice of offers, and in the predicted redemption rates, from the linear model?
+**A9:** [Write your answer here, and then enter your answer into Digital Campus]
+
+
+# Conclusions
+
+In this exercise, we have seen how a linear model can provide reasonable accuracy for predicting whether or not a customer will redeem an offer, but that there is ultimately a flaw with the approach (insufficient user specificity). For this reason, random forests, or other nonlinear models, are important in this context, in the absence of richer, hand-engineered features. The lesson learned is that we should think carefully about the business context of how a model will be used.
