@@ -1,6 +1,6 @@
 1. What is the right objective function for PittaRosso?
 2. What is your recommended strategy?
-    a. The desired  objective function?
+    a. The desired objective function?
     b. What products to markdown and by how much?
     c. What additional broad promotions, like 3x2 (3 for the price of 2), to apply and when?
     d. If and how much to spend in online marketing, e.g. e-mail and text messages?
